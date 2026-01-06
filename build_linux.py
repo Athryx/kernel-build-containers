@@ -56,7 +56,7 @@ def finish_building_kernel(out_dir, interrupt):
     print(f'The finish_container.sh script returned {return_code}')
 
 
-def build_kernel(arch, kconfig, src, out, compiler, make_args):
+def build_kernel(arch, kconfig, src, out, compiler, codeql, make_args):
     print(f'\n=== Building with {compiler} ===')
 
     if kconfig:
@@ -107,18 +107,24 @@ def build_kernel(arch, kconfig, src, out, compiler, make_args):
         print('Going to run the container in the interactive mode (without build log)')
         stdout_destination = None
 
-    start_container_cmd.extend(['--', 'make', 'O=../out/'])
+    make_arg_arr = ['make', 'O=../out/']
 
     if compiler.startswith('clang'):
         print('Compiling with clang requires \'CC=clang\'')
-        start_container_cmd.extend(['CC=clang'])
+        make_arg_arr.extend(['CC=clang'])
 
     cross_compile_args = get_cross_compile_args(arch)
     if cross_compile_args:
         print(f'Add arguments for cross-compilation: {" ".join(cross_compile_args)}')
-    start_container_cmd.extend(cross_compile_args)
+    make_arg_arr.extend(cross_compile_args)
 
-    start_container_cmd.extend(make_args)
+    make_arg_arr.extend(make_args)
+
+    start_container_cmd.append('--')
+    if codeql:
+        start_container_cmd.extend(['codeql', 'database', 'create', '/out/linux_codeql_db', '--language=c', '--command', ' '.join(make_arg_arr)])
+    else:
+        start_container_cmd.extend(make_arg_arr)
 
     print(f'Run the container: {" ".join(start_container_cmd)}')
     interrupt = False
@@ -158,6 +164,8 @@ def main():
                         help='for running `make` in quiet mode')
     parser.add_argument('-t', '--single-thread', action='store_true',
                         help='for running `make` in single-threaded mode (multi-threaded by default)')
+    parser.add_argument('--codeql', action='store_true',
+                        help='create codeql database while building kernel')
     parser.add_argument('make_args', metavar='...', nargs=argparse.REMAINDER,
                         help='additional arguments for \'make\', can be separated by -- delimiter')
     args = parser.parse_args()
@@ -207,7 +215,7 @@ def main():
     else:
         print('[+] Going to run \'make\' in single-threaded mode')
 
-    build_kernel(args.arch, args.kconfig, args.src, args.out, args.compiler, make_args)
+    build_kernel(args.arch, args.kconfig, args.src, args.out, args.compiler, args.codeql, make_args)
 
     print('\n[+] Done, see the results')
 

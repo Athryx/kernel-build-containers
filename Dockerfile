@@ -1,6 +1,12 @@
 ARG UBUNTU_VERSION
 FROM ubuntu:${UBUNTU_VERSION} as base
 
+RUN apt-get update && apt-get install -y wget
+WORKDIR /opt
+RUN wget https://github.com/github/codeql-action/releases/download/codeql-bundle-v2.23.8/codeql-bundle-linux64.tar.gz
+RUN tar -xvaf codeql-bundle-linux64.tar.gz
+ENV PATH="/opt/codeql:${PATH}"
+
 ARG GCC_VERSION
 ARG CLANG_VERSION
 RUN set -ex; \
