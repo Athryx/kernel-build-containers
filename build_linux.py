@@ -56,7 +56,7 @@ def finish_building_kernel(out_dir, interrupt):
     print(f'The finish_container.sh script returned {return_code}')
 
 
-def build_kernel(arch, kconfig, src, out, compiler, codeql, make_args):
+def build_kernel(arch, kconfig, src, out, compiler, codeql, compile_commands, make_args):
     print(f'\n=== Building with {compiler} ===')
 
     if kconfig:
@@ -126,6 +126,9 @@ def build_kernel(arch, kconfig, src, out, compiler, codeql, make_args):
     else:
         start_container_cmd.extend(make_arg_arr)
 
+    if compile_commands:
+        start_container_cmd.extend(['&&', 'python3', '/src/scripts/clang-tools/gen_compile_commands.py', '-d', '/out', '-o', '/out/compile_commands.json'])
+
     print(f'Run the container: {" ".join(start_container_cmd)}')
     interrupt = False
     with subprocess.Popen(start_container_cmd, stdout=stdout_destination, stderr=subprocess.STDOUT,
@@ -166,6 +169,8 @@ def main():
                         help='for running `make` in single-threaded mode (multi-threaded by default)')
     parser.add_argument('--codeql', action='store_true',
                         help='create codeql database while building kernel')
+    parser.add_argument('--compile-commands', action='store_true',
+                        help='create compile_commands.json for use by clangd and other tools')
     parser.add_argument('make_args', metavar='...', nargs=argparse.REMAINDER,
                         help='additional arguments for \'make\', can be separated by -- delimiter')
     args = parser.parse_args()
@@ -215,7 +220,7 @@ def main():
     else:
         print('[+] Going to run \'make\' in single-threaded mode')
 
-    build_kernel(args.arch, args.kconfig, args.src, args.out, args.compiler, args.codeql, make_args)
+    build_kernel(args.arch, args.kconfig, args.src, args.out, args.compiler, args.codeql, args.compile_commands, make_args)
 
     print('\n[+] Done, see the results')
 

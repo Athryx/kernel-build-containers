@@ -94,4 +94,4 @@ fi
 exec $SUDO_CMD docker run $ENV $INTERACTIVE $CIDFILE --rm \
 	-v $SRC:/src:Z \
 	-v $OUT:/out:Z \
-	kernel-build-container:$COMPILER "$@"
+	kernel-build-container:$COMPILER /bin/sh -c "$*"
