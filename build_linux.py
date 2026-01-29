@@ -8,6 +8,7 @@ import argparse
 import subprocess
 import shutil
 import filecmp
+import gen_compile_commands
 
 
 supported_archs = ['x86_64', 'i386', 'arm64', 'arm', 'riscv']
@@ -126,9 +127,6 @@ def build_kernel(arch, kconfig, src, out, compiler, codeql, compile_commands, ma
     else:
         start_container_cmd.extend(make_arg_arr)
 
-    if compile_commands:
-        start_container_cmd.extend(['&&', 'python3', '/src/scripts/clang-tools/gen_compile_commands.py', '-d', '/out', '-o', '/out/compile_commands.json'])
-
     print(f'Run the container: {" ".join(start_container_cmd)}')
     interrupt = False
     with subprocess.Popen(start_container_cmd, stdout=stdout_destination, stderr=subprocess.STDOUT,
@@ -143,6 +141,24 @@ def build_kernel(arch, kconfig, src, out, compiler, codeql, compile_commands, ma
         except KeyboardInterrupt:
             print('[!] Got keyboard interrupt, stopping build process...')
             interrupt = True
+
+    if compile_commands and not interrupt and return_code == 0:
+        print('Generating compile_commands.json...')
+        src_abs = os.path.abspath(src)
+        out_abs = os.path.abspath(out_subdir)
+        gen_compile_commands.generate(
+            log_level='WARNING',
+            directory=out_abs,
+            output=os.path.join(out_abs, 'compile_commands.json'),
+            ar='llvm-ar',
+            paths=[out_abs],
+            path_replacements=[
+                ('/out', out_abs),
+                ('/src', src_abs),
+                ('../src', src_abs)
+            ]
+        )
+
     finish_building_kernel(out_subdir, interrupt)
     if noninteractive:
         print(f'See the build log: {build_log}')
